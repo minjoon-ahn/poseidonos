@@ -435,7 +435,8 @@ StripePartition::GetRecoverMethod(UbioSmartPtr ubio, RecoverMethod& out)
     ArrayDevice* dev = static_cast<ArrayDevice*>(ubio->GetArrayDev());
     if (IsValidLba(lba))
     {
-        if (FindDevice(dev) >= 0)
+        int devIdx = FindDevice(dev);
+        if (devIdx >= 0)
         {
             // Chunk Aliging check
             const uint32_t sectorSize = ArrayConfig::SECTOR_SIZE_BYTE;
@@ -446,8 +447,7 @@ StripePartition::GetRecoverMethod(UbioSmartPtr ubio, RecoverMethod& out)
             originPba.lba = blockAlignment.GetHeadBlock() * sectorsPerBlock;
             FtBlkAddr fba = _Pba2Fba(originPba);
             out.srcAddr = _GetRebuildGroup(fba);
-            out.recoverFunc = method->GetRecoverFunc();
-
+            out.recoverFunc = method->GetRecoverFunc(devIdx);
             return EID(SUCCESS);
         }
         else

@@ -51,6 +51,10 @@ public:
     virtual RaidState GetRaidState(vector<ArrayDeviceState> devs) override;
     bool CheckNumofDevsToConfigure(uint32_t numofDevs) override;
     virtual bool IsRecoverable(void) override { return false; }
+    RecoverFunc GetRecoverFunc(int devIdx) override;
+
+private:
+    RecoverFunc recoverFunc = nullptr;
 };
 
 } // namespace pos

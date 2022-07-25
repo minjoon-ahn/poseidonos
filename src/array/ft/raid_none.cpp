@@ -88,6 +88,12 @@ RaidNone::CheckNumofDevsToConfigure(uint32_t numofDevs)
     return numofDevs == requiredNumofDevsforRAIDNone;
 }
 
+RecoverFunc
+RaidNone::GetRecoverFunc(int devIdx)
+{
+    return recoverFunc;
+}
+
 RaidNone::~RaidNone()
 {
 }

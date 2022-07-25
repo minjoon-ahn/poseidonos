@@ -73,8 +73,8 @@ public:
     virtual int MakeParity(list<FtWriteEntry>& ftl, const LogicalWriteEntry& src) = 0;
     virtual RaidState GetRaidState(vector<ArrayDeviceState> devs) = 0;
     virtual bool CheckNumofDevsToConfigure(uint32_t numofDevs) = 0;
+    virtual RecoverFunc GetRecoverFunc(int devIdx) = 0;
     RaidTypeEnum GetRaidType(void) { return raidType; }
-    RecoverFunc& GetRecoverFunc(void) { return recoverFunc; }
     virtual list<FtBlkAddr> GetRebuildGroup(FtBlkAddr fba) { return list<FtBlkAddr>(); }
     virtual vector<uint32_t> GetParityOffset(StripeId lsid) { return vector<uint32_t>(); }
     virtual bool IsRecoverable(void) { return true; }
@@ -84,7 +84,6 @@ protected:
         0,
     };
     RaidTypeEnum raidType;
-    RecoverFunc recoverFunc = nullptr;
 };
 
 } // namespace pos

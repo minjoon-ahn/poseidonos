@@ -88,6 +88,12 @@ Raid0::CheckNumofDevsToConfigure(uint32_t numofDevs)
     return numofDevs >= minRequiredNumofDevsforRAID0;
 }
 
+RecoverFunc
+Raid0::GetRecoverFunc(int devIdx)
+{
+    return recoverFunc;
+}
+
 Raid0::~Raid0()
 {
 }

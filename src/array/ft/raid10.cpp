@@ -153,6 +153,12 @@ Raid10::_GetMirrorIndex(uint32_t idx)
     }
 }
 
+RecoverFunc
+Raid10::GetRecoverFunc(int devIdx)
+{
+    return recoverFunc;
+}
+
 Raid10::~Raid10()
 {
 }

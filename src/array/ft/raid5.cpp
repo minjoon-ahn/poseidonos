@@ -319,6 +319,12 @@ Raid5::GetParityPoolSize()
     return parityPools.size();
 }
 
+RecoverFunc
+Raid5::GetRecoverFunc(int devIdx)
+{
+    return recoverFunc;
+}
+
 
 } // namespace pos
 

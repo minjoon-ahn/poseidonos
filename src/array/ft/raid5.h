@@ -61,6 +61,7 @@ public:
     virtual RaidState GetRaidState(vector<ArrayDeviceState> devs) override;
     vector<uint32_t> GetParityOffset(StripeId lsid) override;
     bool CheckNumofDevsToConfigure(uint32_t numofDevs) override;
+    RecoverFunc GetRecoverFunc(int devIdx) override;
 
     // This function is for unit testing only
     virtual int GetParityPoolSize();
@@ -75,6 +76,7 @@ private:
     AffinityManager* affinityManager = nullptr;
     MemoryManager* memoryManager = nullptr;
     uint64_t parityBufferCntPerNuma = 0;
+    RecoverFunc recoverFunc = nullptr;
 };
 
 } // namespace pos

@@ -62,7 +62,6 @@ Raid6::Raid6(const PartitionPhysicalSize* pSize, uint64_t bufferCntPerNuma)
     gf_gen_cauchy1_matrix(encode_matrix, chunkCnt, dataCnt);
     g_tbls = new unsigned char[dataCnt * parityCnt * 32];
     ec_init_tables(dataCnt, parityCnt, &encode_matrix[dataCnt * dataCnt], g_tbls);
-    _BindRecoverFunc();
 }
 
 list<FtEntry>
@@ -288,13 +287,6 @@ Raid6::_ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src)
 }
 
 void
-Raid6::_BindRecoverFunc(void)
-{
-    // using namespace std::placeholders;
-    // recoverFunc = bind(&Raid6::_RebuildData, this, _1, _2, _3);
-}
-
-void
 Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> errorIndex)
 {
     uint32_t destCnt = errorIndex.size();
@@ -312,6 +304,8 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
     unsigned char** output_ptr = (unsigned char**) dst;
 
     memset(err_index, 0, sizeof(err_index));
+
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: destCnt:{}, destIdx:{}, dstSize:{}", destCnt, errorIndex.front(), dstSize);
 
     for (uint32_t i = 0; i < chunkCnt; i++)
     {
@@ -457,6 +451,15 @@ int
 Raid6::GetParityPoolSize()
 {
     return parityPools.size();
+}
+
+RecoverFunc
+Raid6::GetRecoverFunc(int devIdx)
+{
+    vector<uint32_t> errorIndex;
+    errorIndex.push_back(devIdx);
+    recoverFunc = bind(&Raid6::_RebuildData, this, placeholders::_1, placeholders::_2, placeholders::_3, errorIndex);
+    return recoverFunc;
 }
 
 } // namespace pos

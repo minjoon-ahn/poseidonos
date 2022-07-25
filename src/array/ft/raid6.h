@@ -60,11 +60,11 @@ public:
     virtual RaidState GetRaidState(vector<ArrayDeviceState> devs) override;
     vector<uint32_t> GetParityOffset(StripeId lsid) override;
     bool CheckNumofDevsToConfigure(uint32_t numofDevs) override;
+    RecoverFunc GetRecoverFunc(int devIdx) override;
 
     // This function is for unit testing only
     virtual int GetParityPoolSize();
 private:
-    void _BindRecoverFunc(void);
     void _RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> errorIndex);
     BufferEntry _AllocChunk();
     void _ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src);
@@ -81,6 +81,7 @@ private:
     uint32_t qParityIndex = 0;
     unsigned char* encode_matrix = nullptr;
     unsigned char* g_tbls = nullptr;
+    RecoverFunc recoverFunc = nullptr;
 };
 
 } // namespace pos

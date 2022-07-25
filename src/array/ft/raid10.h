@@ -53,12 +53,14 @@ public:
     virtual RaidState GetRaidState(vector<ArrayDeviceState> devs) override;
     vector<uint32_t> GetParityOffset(StripeId lsid) override;
     bool CheckNumofDevsToConfigure(uint32_t numofDevs) override;
+    RecoverFunc GetRecoverFunc(int devIdx) override;
 
 private:
     void _RebuildData(void* dst, void* src, uint32_t size);
     uint32_t _GetMirrorIndex(uint32_t idx);
     void _BindRecoverFunc(void);
     uint32_t mirrorDevCnt = 0;
+    RecoverFunc recoverFunc = nullptr;
 };
 
 } // namespace pos
