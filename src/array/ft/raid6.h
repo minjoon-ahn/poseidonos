@@ -63,7 +63,6 @@ public:
 
     // This function is for unit testing only
     virtual int GetParityPoolSize();
-    
 private:
     void _BindRecoverFunc(void);
     void _RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> errorIndex);

@@ -47,7 +47,6 @@ Raid6::Raid6(const PartitionPhysicalSize* pSize, uint64_t bufferCntPerNuma)
 : Method(RaidTypeEnum::RAID6),
   parityBufferCntPerNuma(bufferCntPerNuma)
 {
-    
     ftSize_ = {
         .minWriteBlkCnt = 0,
         .backupBlkCnt = pSize->blksPerChunk * 2,
@@ -72,7 +71,6 @@ Raid6::Translate(const LogicalEntry& le)
     vector<uint32_t> parityOffset = GetParityOffset(le.addr.stripeId);
     uint32_t offsetSizeforParity = ftSize_.blksPerChunk;
     assert(parityOffset.size() == 2);
-
     uint32_t pParityIndex = parityOffset.front();
     uint32_t qParityIndex = parityOffset.back();
     BlkOffset pParityOffset = (uint64_t)pParityIndex * (uint64_t)offsetSizeforParity;
@@ -80,7 +78,6 @@ Raid6::Translate(const LogicalEntry& le)
     BlkOffset lastOffset = startOffset + le.blkCnt - 1;
     uint32_t firstIndex = startOffset / ftSize_.blksPerChunk;
     uint32_t lastIndex = lastOffset / ftSize_.blksPerChunk;
- 
     list<FtEntry> feList;
     FtEntry fe;
     fe.addr.stripeId = le.addr.stripeId;
@@ -156,10 +153,9 @@ Raid6::MakeParity(list<FtWriteEntry>& ftl, const LogicalWriteEntry& src)
     fwe_qParity.addr.stripeId = src.addr.stripeId;
     fwe_qParity.addr.offset = (uint64_t)qParityIndex * (uint64_t)ftSize_.blksPerChunk;
     fwe_qParity.blkCnt = ftSize_.blksPerChunk;
-  
+
     BufferEntry pParity = _AllocChunk();
     BufferEntry qParity = _AllocChunk();
-
     list<BufferEntry> parities;
 
     parities.push_back(pParity);
@@ -258,14 +254,14 @@ Raid6::_AllocChunk()
 void
 Raid6::_ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src)
 {
-    uint32_t i, src_iter, dst_iter;
+    uint32_t src_iter, dst_iter;
     uint64_t* src_ptr = nullptr;
     uint64_t* dst_ptr = nullptr;
     unsigned char *sources[chunkCnt];
 
     src_iter = 0;
 
-    for (i = 0; i < chunkCnt; i++)
+    for (uint32_t i = 0; i < chunkCnt; i++)
     {
         sources[i] = new unsigned char[chunkSize];
     }
@@ -285,7 +281,7 @@ Raid6::_ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src)
         memcpy(dst_ptr, sources[dataCnt + dst_iter++], chunkSize);
     }
 
-    for ( i = 0; i < chunkCnt; i++)
+    for (uint32_t i = 0; i < chunkCnt; i++)
     {
         delete[] sources[i];
     }
@@ -303,7 +299,6 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
 {
     uint32_t destCnt = errorIndex.size();
     assert(destCnt <= parityCnt);
-    
     unsigned char err_index[chunkCnt];
     unsigned char decode_index[chunkCnt];
     unsigned char *recover_src[chunkCnt];
@@ -330,7 +325,7 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
 
     for (uint32_t i = 0; i < chunkCnt; i++)
     {
-        for(uint32_t j =0; j < dstSize; j++)
+        for (uint32_t j = 0; j < dstSize; j++)
         {
             recover_src[i][j] = input_ptr[i][j];
         }
@@ -349,14 +344,14 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
         }
         for (uint32_t j = 0; j < dataCnt; j++)
         {
-             temp_matrix [dataCnt * i + j] = encode_matrix[dataCnt * r + j];
+             temp_matrix[dataCnt * i + j] = encode_matrix[dataCnt * r + j];
         }
         decode_index[i] = r;
     }
 
     gf_invert_matrix(temp_matrix, invert_matrix, dataCnt);
 
-    for(uint32_t i = 0; i < destCnt; i++)
+    for (uint32_t i = 0; i < destCnt; i++)
     {
         if(errorIndex[i] == pParityIndex || errorIndex[i] == qParityIndex)
         {
@@ -379,17 +374,17 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
         }
     }
 
-    for(uint32_t i = 0; i < dataCnt; i++)
+    for (uint32_t i = 0; i < dataCnt; i++)
     {
         recover_inp[i] = recover_src[decode_index[i]];
     }
-    
+
     ec_init_tables(dataCnt, destCnt, decode_matrix, g_tbls);
     ec_encode_data(dstSize, dataCnt, destCnt, g_tbls, recover_inp, recover_outp);
 
     for (uint32_t i = 0; i < destCnt; i++)
     {
-        for(uint32_t j =0; j < dstSize; j++)
+        for (uint32_t j = 0; j < dstSize; j++)
         {
            output_ptr[i][j]  = recover_outp[i][j];
         }
@@ -416,7 +411,7 @@ Raid6::AllocParityPools(uint64_t maxParityBufferCntPerNuma,
     const uint64_t ARRAY_CHUNK_SIZE = ArrayConfig::BLOCK_SIZE_BYTE * ArrayConfig::BLOCKS_PER_CHUNK;
 
     uint32_t totalNumaCount = affinityManager->GetNumaCount();
-    
+
     for (uint32_t numa = 0; numa < totalNumaCount; numa++)
     {
         BufferInfo info = {
