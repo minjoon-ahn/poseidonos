@@ -49,7 +49,7 @@ public:
     virtual ~Raid10();
     virtual list<FtEntry> Translate(const LogicalEntry& le) override;
     virtual int MakeParity(list<FtWriteEntry>& ftl, const LogicalWriteEntry& src) override;
-    virtual list<FtBlkAddr> GetRebuildGroup(FtBlkAddr fba) override;
+    virtual list<FtBlkAddr> GetRebuildGroup(FtBlkAddr fba, vector<ArrayDeviceState> devs) override;
     virtual RaidState GetRaidState(vector<ArrayDeviceState> devs) override;
     vector<uint32_t> GetParityOffset(StripeId lsid) override;
     bool CheckNumofDevsToConfigure(uint32_t numofDevs) override;

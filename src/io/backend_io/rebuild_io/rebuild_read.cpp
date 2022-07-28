@@ -73,9 +73,9 @@ RebuildRead::Recover(UbioSmartPtr ubio, BufferPool* bufferPool)
     PhysicalBlkAddr originPba = ubio->GetPba();
     BlockAlignment blockAlignment(originPba.lba * sectorSize, ubio->GetSize());
     originPba.lba = blockAlignment.GetHeadBlock() * sectorsPerBlock;
-
     uint32_t readSize = blockAlignment.GetBlockCount() * blockSize;
     uint32_t sectorCnt = rm.srcAddr.size() * readSize / sectorSize;
+   
     void* mem = nullptr;
     if (bufferPool == nullptr) // Degraded Or Timeout case
     {

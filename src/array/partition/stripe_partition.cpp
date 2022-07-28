@@ -380,7 +380,11 @@ StripePartition::_Pba2Fba(const PhysicalBlkAddr& pba)
 list<PhysicalBlkAddr>
 StripePartition::_GetRebuildGroup(FtBlkAddr fba)
 {
-    list<FtBlkAddr> ftAddrs = method->GetRebuildGroup(fba);
+    auto&& deviceStateList = Enumerable::Select(devs,
+        [](auto d) { return d->GetState(); });
+
+    list<FtBlkAddr> ftAddrs = method->GetRebuildGroup(fba, deviceStateList);
+
     list<PhysicalBlkAddr> ret;
     for (FtBlkAddr fba : ftAddrs)
     {
@@ -389,7 +393,6 @@ StripePartition::_GetRebuildGroup(FtBlkAddr fba)
     }
     return ret;
 }
-
 
 list<BufferEntry>
 StripePartition::_SpliceBuffer(list<BufferEntry>& src, uint32_t start, uint32_t remain)

@@ -177,8 +177,25 @@ Raid6::MakeParity(list<FtWriteEntry>& ftl, const LogicalWriteEntry& src)
 }
 
 list<FtBlkAddr>
-Raid6::GetRebuildGroup(FtBlkAddr fba)
+Raid6::GetRebuildGroup(FtBlkAddr fba, vector<ArrayDeviceState> devs)
 {
+    int i = 0;
+    vector<int> abnormalIdx;
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: devs.size():{}",devs.size());
+    for (auto devState : devs)
+    {
+        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: i:{}, STATE:{}",i, devState);
+        if (devState != ArrayDeviceState::NORMAL)
+        {
+            abnormalIdx.push_back(i);
+        }
+        i++;
+    }
+    for(uint32_t i = 0 ; i < abnormalIdx.size(); i++)
+    {
+        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: abnormalIdx:{}",abnormalIdx[i]);
+    }
+
     uint32_t blksPerChunk = ftSize_.blksPerChunk;
     uint32_t offsetInChunk = fba.offset % blksPerChunk;
     uint32_t chunkIndex = fba.offset / blksPerChunk;
@@ -186,14 +203,14 @@ Raid6::GetRebuildGroup(FtBlkAddr fba)
     list<FtBlkAddr> recoveryGroup;
     for (uint32_t i = 0; i < ftSize_.chunksPerStripe; i++)
     {
-        if (i != chunkIndex)
+        if (i != chunkIndex && find(abnormalIdx.begin(), abnormalIdx.end(), i) == abnormalIdx.end())
         {
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: i:{}", i);
             FtBlkAddr fsa = {.stripeId = fba.stripeId,
-                .offset = offsetInChunk + i * blksPerChunk};
+                             .offset = offsetInChunk + i * blksPerChunk};
             recoveryGroup.push_back(fsa);
         }
     }
-
     return recoveryGroup;
 }
 
@@ -291,38 +308,33 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
 {
     uint32_t destCnt = errorIndex.size();
     assert(destCnt <= parityCnt);
-    unsigned char err_index[chunkCnt];
-    unsigned char decode_index[chunkCnt];
-    unsigned char *recover_src[chunkCnt];
-    unsigned char *recover_inp[dataCnt];
-    unsigned char *recover_outp[chunkCnt];
-    unsigned char *temp_matrix = new unsigned char[chunkCnt * dataCnt];
-    unsigned char *invert_matrix = new unsigned char[chunkCnt * dataCnt];
-    unsigned char *decode_matrix = new unsigned char[chunkCnt* dataCnt];
 
-    unsigned char** input_ptr = (unsigned char**) src;
-    unsigned char** output_ptr = (unsigned char**) dst;
+    uint32_t rebuildCnt = chunkCnt - destCnt;
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: rebuildCnt:{}",rebuildCnt);
+    unsigned char err_index[rebuildCnt];
+    unsigned char decode_index[rebuildCnt];
+    unsigned char *recover_src[rebuildCnt];
+    unsigned char *recover_inp[rebuildCnt];
+    unsigned char *recover_outp[destCnt];
+    unsigned char *temp_matrix = new unsigned char[rebuildCnt * dataCnt];
+    unsigned char *invert_matrix = new unsigned char[rebuildCnt * dataCnt];
+    unsigned char *decode_matrix = new unsigned char[rebuildCnt * dataCnt];
 
     memset(err_index, 0, sizeof(err_index));
 
-    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: destCnt:{}, destIdx:{}, dstSize:{}", destCnt, errorIndex.front(), dstSize);
-
-    for (uint32_t i = 0; i < chunkCnt; i++)
+    for (uint32_t i = 0; i < rebuildCnt; i++)
     {
         recover_src[i] = new unsigned char[dstSize];
     }
 
-    for (uint32_t i = 0; i < chunkCnt; i++)
+    for (uint32_t i = 0; i < destCnt; i++)
     {
         recover_outp[i] = new unsigned char[dstSize];
     }
 
-    for (uint32_t i = 0; i < chunkCnt; i++)
+    for (uint32_t i = 0; i < rebuildCnt; i++)
     {
-        for (uint32_t j = 0; j < dstSize; j++)
-        {
-            recover_src[i][j] = input_ptr[i][j];
-        }
+        memcpy(recover_src[i], (unsigned char*)src+i, dstSize);
     }
 
     for (uint32_t i = 0; i < destCnt; i++)
@@ -349,6 +361,7 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
     {
         if(errorIndex[i] == pParityIndex || errorIndex[i] == qParityIndex)
         {
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: Parity Buffer Error:{}",errorIndex[i]);
             for (uint32_t pidx = 0; pidx < dataCnt; pidx++)
             {
                 unsigned char s = 0;
@@ -378,21 +391,23 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
 
     for (uint32_t i = 0; i < destCnt; i++)
     {
-        for (uint32_t j = 0; j < dstSize; j++)
-        {
-           output_ptr[i][j]  = recover_outp[i][j];
-        }
+         memcpy((unsigned char*)dst+i, recover_outp[i] ,dstSize);
     }
 
-    for (uint32_t i = 0; i < chunkCnt; i++)
+    for (uint32_t i = 0; i < rebuildCnt; i++)
+    {
+        delete[] recover_src[i];
+    }
+
+    for (uint32_t i = 0; i < destCnt; i++)
     {
         delete[] recover_outp[i];
-        delete[] recover_src[i];
     }
 
     delete[] decode_matrix;
     delete[] invert_matrix;
     delete[] temp_matrix;
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: [DONE]");
 }
 
 bool

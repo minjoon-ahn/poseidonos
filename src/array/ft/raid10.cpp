@@ -76,7 +76,7 @@ Raid10::MakeParity(list<FtWriteEntry>& ftl, const LogicalWriteEntry& src)
 }
 
 list<FtBlkAddr>
-Raid10::GetRebuildGroup(FtBlkAddr fba)
+Raid10::GetRebuildGroup(FtBlkAddr fba, vector<ArrayDeviceState> devs)
 {
     uint32_t idx = fba.offset / ftSize_.blksPerChunk;
     uint32_t offset = fba.offset % ftSize_.blksPerChunk;

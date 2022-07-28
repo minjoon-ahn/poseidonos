@@ -75,7 +75,7 @@ public:
     virtual bool CheckNumofDevsToConfigure(uint32_t numofDevs) = 0;
     virtual RecoverFunc GetRecoverFunc(int devIdx) = 0;
     RaidTypeEnum GetRaidType(void) { return raidType; }
-    virtual list<FtBlkAddr> GetRebuildGroup(FtBlkAddr fba) { return list<FtBlkAddr>(); }
+    virtual list<FtBlkAddr> GetRebuildGroup(FtBlkAddr fba,vector<ArrayDeviceState> devs) { return list<FtBlkAddr>(); }
     virtual vector<uint32_t> GetParityOffset(StripeId lsid) { return vector<uint32_t>(); }
     virtual bool IsRecoverable(void) { return true; }
 
