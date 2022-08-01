@@ -234,7 +234,7 @@ StripePartition::_SetMethod(uint64_t totalNvmBlks)
         uint64_t maxGcStripes = 2048;
         uint64_t parityCnt = 2;
         uint64_t reqBuffersPerNuma = (totalNvmStripes + maxGcStripes) * parityCnt;
-        Raid6* raid6 = new Raid6(&physicalSize, reqBuffersPerNuma);
+        Raid6* raid6 = new Raid6(&physicalSize, reqBuffersPerNuma, bind(&pos::StripePartition::GetDevState, this));
         method = raid6;
     }
     else
@@ -243,7 +243,6 @@ StripePartition::_SetMethod(uint64_t totalNvmBlks)
         POS_TRACE_WARN(eventId, "raidtype: {} ", RaidType(raidType).ToString());
         return eventId;
     }
-
     size_t numofDevs = devs.size();
     if (method->CheckNumofDevsToConfigure(numofDevs) == false)
     {
@@ -511,4 +510,14 @@ StripePartition::GetRaidState(void)
 
     return method->GetRaidState(deviceStateList);
 }
+
+const vector<ArrayDeviceState> 
+StripePartition::GetDevState(void)
+{
+    auto&& deviceStateList = Enumerable::Select(devs,
+        [](auto d) { return d->GetState(); });
+
+    return deviceStateList;
+}
+
 } // namespace pos

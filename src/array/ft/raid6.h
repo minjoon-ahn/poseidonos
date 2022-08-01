@@ -44,11 +44,11 @@ namespace pos
 class PartitionPhysicalSize;
 class RebuildBehavior;
 class BufferPool;
-
+using DevStateGetter = function<const vector<ArrayDeviceState>(void)>;
 class Raid6 : public Method
 {
 public:
-    explicit Raid6(const PartitionPhysicalSize* pSize, uint64_t bufferCntPerNuma);
+    explicit Raid6(const PartitionPhysicalSize* pSize, uint64_t bufferCntPerNuma, DevStateGetter devState);
     virtual ~Raid6();
     virtual bool AllocParityPools(uint64_t parityBufferCntPerNuma,
         AffinityManager* affMgr = AffinityManagerSingleton::Instance(),
@@ -82,6 +82,7 @@ private:
     unsigned char* encode_matrix = nullptr;
     unsigned char* g_tbls = nullptr;
     RecoverFunc recoverFunc = nullptr;
+    DevStateGetter stateGetter = nullptr;
 };
 
 } // namespace pos

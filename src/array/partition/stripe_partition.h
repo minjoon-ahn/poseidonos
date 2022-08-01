@@ -69,7 +69,7 @@ public:
     unique_ptr<RebuildContext> GetRebuildCtx(ArrayDevice* fault) override;
     Method* GetMethod(void) { return method; }
     RaidTypeEnum GetRaidType(void) override { return raidType; }
-
+    const vector<ArrayDeviceState> GetDevState(void);
 private:
     list<FtEntry> _L2FTranslate(const LogicalEntry& le);
     list<PhysicalEntry> _F2PTranslate(const list<FtEntry>& fel);

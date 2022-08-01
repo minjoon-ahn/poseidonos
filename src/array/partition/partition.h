@@ -50,7 +50,6 @@ using namespace std;
 
 namespace pos
 {
-
 class Partition : public ITranslator
 {
 public:

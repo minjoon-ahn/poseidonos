@@ -43,7 +43,7 @@
 
 namespace pos
 {
-Raid6::Raid6(const PartitionPhysicalSize* pSize, uint64_t bufferCntPerNuma)
+Raid6::Raid6(const PartitionPhysicalSize* pSize, uint64_t bufferCntPerNuma, DevStateGetter devState)
 : Method(RaidTypeEnum::RAID6),
   parityBufferCntPerNuma(bufferCntPerNuma)
 {
@@ -58,6 +58,7 @@ Raid6::Raid6(const PartitionPhysicalSize* pSize, uint64_t bufferCntPerNuma)
     chunkCnt = ftSize_.chunksPerStripe;
     dataCnt = chunkCnt - parityCnt;
     chunkSize = ArrayConfig::BLOCK_SIZE_BYTE * ftSize_.blksPerChunk;
+    stateGetter = devState;
     encode_matrix = new unsigned char[chunkCnt * dataCnt];
     gf_gen_cauchy1_matrix(encode_matrix, chunkCnt, dataCnt);
     g_tbls = new unsigned char[dataCnt * parityCnt * 32];
@@ -179,18 +180,18 @@ Raid6::MakeParity(list<FtWriteEntry>& ftl, const LogicalWriteEntry& src)
 list<FtBlkAddr>
 Raid6::GetRebuildGroup(FtBlkAddr fba, vector<ArrayDeviceState> devs)
 {
-    int i = 0;
+    uint32_t  deviceStateIdx = 0;
     vector<int> abnormalIdx;
-    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: devs.size():{}",devs.size());
+
     for (auto devState : devs)
     {
-        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: i:{}, STATE:{}",i, devState);
         if (devState != ArrayDeviceState::NORMAL)
         {
-            abnormalIdx.push_back(i);
+            abnormalIdx.push_back(deviceStateIdx);
         }
-        i++;
+        deviceStateIdx++;
     }
+
     for(uint32_t i = 0 ; i < abnormalIdx.size(); i++)
     {
         POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: abnormalIdx:{}",abnormalIdx[i]);
@@ -205,7 +206,6 @@ Raid6::GetRebuildGroup(FtBlkAddr fba, vector<ArrayDeviceState> devs)
     {
         if (i != chunkIndex && find(abnormalIdx.begin(), abnormalIdx.end(), i) == abnormalIdx.end())
         {
-            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: i:{}", i);
             FtBlkAddr fsa = {.stripeId = fba.stripeId,
                              .offset = offsetInChunk + i * blksPerChunk};
             recoveryGroup.push_back(fsa);
@@ -306,9 +306,21 @@ Raid6::_ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src)
 void
 Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> errorIndex)
 {
+    const vector<ArrayDeviceState> devs = stateGetter();
+    uint32_t  deviceStateIdx = 0;
+
+    for (auto devState : devs)
+    {
+        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: i:{}, STATE:{}",deviceStateIdx, devState);
+        if (devState != ArrayDeviceState::NORMAL && find(errorIndex.begin(), errorIndex.end(), deviceStateIdx) == errorIndex.end())
+        {
+             errorIndex.push_back(deviceStateIdx++);
+        }
+        deviceStateIdx++;
+    }
+
     uint32_t destCnt = errorIndex.size();
     assert(destCnt <= parityCnt);
-
     uint32_t rebuildCnt = chunkCnt - destCnt;
     POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: rebuildCnt:{}",rebuildCnt);
     unsigned char err_index[rebuildCnt];
@@ -361,7 +373,6 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
     {
         if(errorIndex[i] == pParityIndex || errorIndex[i] == qParityIndex)
         {
-            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: Parity Buffer Error:{}",errorIndex[i]);
             for (uint32_t pidx = 0; pidx < dataCnt; pidx++)
             {
                 unsigned char s = 0;
@@ -407,7 +418,6 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
     delete[] decode_matrix;
     delete[] invert_matrix;
     delete[] temp_matrix;
-    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: [DONE]");
 }
 
 bool
