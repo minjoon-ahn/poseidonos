@@ -192,11 +192,6 @@ Raid6::GetRebuildGroup(FtBlkAddr fba, vector<ArrayDeviceState> devs)
         deviceStateIdx++;
     }
 
-    for(uint32_t i = 0 ; i < abnormalIdx.size(); i++)
-    {
-        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup: abnormalIdx:{}",abnormalIdx[i]);
-    }
-
     uint32_t blksPerChunk = ftSize_.blksPerChunk;
     uint32_t offsetInChunk = fba.offset % blksPerChunk;
     uint32_t chunkIndex = fba.offset / blksPerChunk;
@@ -304,25 +299,29 @@ Raid6::_ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src)
 }
 
 void
-Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> errorIndex)
+Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rebuildIndex)
 {
     const vector<ArrayDeviceState> devs = stateGetter();
     uint32_t  deviceStateIdx = 0;
+    vector<uint32_t> errorIndex;
 
     for (auto devState : devs)
     {
-        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: i:{}, STATE:{}",deviceStateIdx, devState);
-        if (devState != ArrayDeviceState::NORMAL && find(errorIndex.begin(), errorIndex.end(), deviceStateIdx) == errorIndex.end())
+        if (devState != ArrayDeviceState::NORMAL)
         {
-             errorIndex.push_back(deviceStateIdx++);
+            errorIndex.push_back(deviceStateIdx);
         }
         deviceStateIdx++;
+    }
+
+    for(auto eIdx : errorIndex)
+    {
+        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: device index:{}",eIdx);
     }
 
     uint32_t destCnt = errorIndex.size();
     assert(destCnt <= parityCnt);
     uint32_t rebuildCnt = chunkCnt - destCnt;
-    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: rebuildCnt:{}",rebuildCnt);
     unsigned char err_index[rebuildCnt];
     unsigned char decode_index[rebuildCnt];
     unsigned char *recover_src[rebuildCnt];
@@ -402,7 +401,10 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> err
 
     for (uint32_t i = 0; i < destCnt; i++)
     {
-         memcpy((unsigned char*)dst+i, recover_outp[i] ,dstSize);
+        if(errorIndex[i] == rebuildIndex.front())
+        {
+            memcpy((unsigned char*)dst, recover_outp[i] ,dstSize);
+        }
     }
 
     for (uint32_t i = 0; i < rebuildCnt; i++)

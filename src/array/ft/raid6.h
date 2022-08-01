@@ -65,7 +65,7 @@ public:
     // This function is for unit testing only
     virtual int GetParityPoolSize();
 private:
-    void _RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> errorIndex);
+    void _RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rebuildIndex);
     BufferEntry _AllocChunk();
     void _ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src);
     vector<BufferPool*> parityPools;
