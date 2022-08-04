@@ -299,7 +299,7 @@ Raid6::_ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src)
 }
 
 void
-Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rebuildIndex)
+Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> readIndex)
 {
     const vector<ArrayDeviceState> devs = stateGetter();
     uint32_t  deviceStateIdx = 0;
@@ -314,26 +314,26 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> reb
         deviceStateIdx++;
     }
 
-    for(auto eIdx : errorIndex)
-    {
-        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: device index:{}",eIdx);
-    }
-
     uint32_t destCnt = errorIndex.size();
     assert(destCnt <= parityCnt);
-    uint32_t rebuildCnt = chunkCnt - destCnt;
-    unsigned char err_index[rebuildCnt];
-    unsigned char decode_index[rebuildCnt];
-    unsigned char *recover_src[rebuildCnt];
-    unsigned char *recover_inp[rebuildCnt];
+
+    unsigned char err_index[chunkCnt];
+    unsigned char decode_index[chunkCnt];
+    unsigned char *recover_src[chunkCnt];
+    unsigned char *recover_inp[chunkCnt];
     unsigned char *recover_outp[destCnt];
-    unsigned char *temp_matrix = new unsigned char[rebuildCnt * dataCnt];
-    unsigned char *invert_matrix = new unsigned char[rebuildCnt * dataCnt];
-    unsigned char *decode_matrix = new unsigned char[rebuildCnt * dataCnt];
+    unsigned char *temp_matrix = new unsigned char[chunkCnt * dataCnt];
+    unsigned char *invert_matrix = new unsigned char[chunkCnt * dataCnt];
+    unsigned char *decode_matrix = new unsigned char[chunkCnt * dataCnt];
 
     memset(err_index, 0, sizeof(err_index));
+    
+    for (uint32_t i = 0; i < chunkCnt; i++)
+    {
+        recover_src[i] = new unsigned char[dstSize];
+    }
 
-    for (uint32_t i = 0; i < rebuildCnt; i++)
+    for (uint32_t i = 0; i < chunkCnt; i++)
     {
         recover_src[i] = new unsigned char[dstSize];
     }
@@ -343,9 +343,40 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> reb
         recover_outp[i] = new unsigned char[dstSize];
     }
 
-    for (uint32_t i = 0; i < rebuildCnt; i++)
+    // unsigned char** src_ptr = (unsigned char**) src;
+    // unsigned char** dst_ptr = (unsigned char**) dst;
+    uint64_t* src_ptr = (uint64_t*)src;
+    uint64_t* dst_ptr = (uint64_t*)dst;
+
+    for (uint32_t i = 0; i < chunkCnt; i++)
     {
-        memcpy(recover_src[i], (unsigned char*)src+i, dstSize);
+        for(uint32_t j =0; j < dstSize; j++)
+        {
+           recover_src[i][j] = 0;
+        }
+    }
+
+    uint32_t tempIdx = 0;
+    vector<uint32_t> sourceIdx;
+
+    for(uint32_t i = 0; i< chunkCnt; i++)
+    {
+        if(find(errorIndex.begin(), errorIndex.end(),i) == errorIndex.end())
+        {
+            sourceIdx.push_back(tempIdx);
+        }
+        tempIdx++;
+    }
+
+    uint32_t src_i = 0;
+    for(auto idx:sourceIdx)
+    {
+        memcpy(recover_src[idx], src_ptr+src_i, dstSize);
+        // for(uint32_t j = 0; j < dstSize; j++)
+        // {
+        //     recover_src[idx][j] = src_ptr[src_i][j];
+        // }
+        src_i++;
     }
 
     for (uint32_t i = 0; i < destCnt; i++)
@@ -401,13 +432,17 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> reb
 
     for (uint32_t i = 0; i < destCnt; i++)
     {
-        if(errorIndex[i] == rebuildIndex.front())
+        if(find(readIndex.begin(), readIndex.end(),errorIndex[i]) != readIndex.end())
         {
-            memcpy((unsigned char*)dst, recover_outp[i] ,dstSize);
+            // for(uint32_t j = 0; j < dstSize; j++)
+            // {
+            //     dst_ptr[i][j] = recover_outp[i][j];
+            // }
+            memcpy(dst_ptr+i,recover_outp[i],dstSize);
         }
     }
 
-    for (uint32_t i = 0; i < rebuildCnt; i++)
+    for (uint32_t i = 0; i < chunkCnt; i++)
     {
         delete[] recover_src[i];
     }
@@ -416,7 +451,7 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> reb
     {
         delete[] recover_outp[i];
     }
-
+    
     delete[] decode_matrix;
     delete[] invert_matrix;
     delete[] temp_matrix;
