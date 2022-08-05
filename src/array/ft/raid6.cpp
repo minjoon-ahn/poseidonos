@@ -314,8 +314,14 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
         deviceStateIdx++;
     }
 
+    for(auto eIdx : errorIndex)
+    {
+        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: device index:{}",eIdx);
+    }
     uint32_t destCnt = errorIndex.size();
     assert(destCnt <= parityCnt);
+
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: destCnt:{}",destCnt);
 
     unsigned char err_index[chunkCnt];
     unsigned char decode_index[chunkCnt];
@@ -335,7 +341,7 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
 
     for (uint32_t i = 0; i < chunkCnt; i++)
     {
-        recover_src[i] = new unsigned char[dstSize];
+        recover_inp[i] = new unsigned char[dstSize];
     }
 
     for (uint32_t i = 0; i < destCnt; i++)
@@ -343,40 +349,20 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
         recover_outp[i] = new unsigned char[dstSize];
     }
 
-    // unsigned char** src_ptr = (unsigned char**) src;
-    // unsigned char** dst_ptr = (unsigned char**) dst;
-    uint64_t* src_ptr = (uint64_t*)src;
-    uint64_t* dst_ptr = (uint64_t*)dst;
+    unsigned char* src_ptr = (unsigned char*)src;
 
+    int idx = 0;
     for (uint32_t i = 0; i < chunkCnt; i++)
-    {
-        for(uint32_t j =0; j < dstSize; j++)
-        {
-           recover_src[i][j] = 0;
-        }
-    }
-
-    uint32_t tempIdx = 0;
-    vector<uint32_t> sourceIdx;
-
-    for(uint32_t i = 0; i< chunkCnt; i++)
     {
         if(find(errorIndex.begin(), errorIndex.end(),i) == errorIndex.end())
         {
-            sourceIdx.push_back(tempIdx);
+            memcpy(recover_src[i], src_ptr+(i-idx)*dstSize, dstSize);
         }
-        tempIdx++;
-    }
-
-    uint32_t src_i = 0;
-    for(auto idx:sourceIdx)
-    {
-        memcpy(recover_src[idx], src_ptr+src_i, dstSize);
-        // for(uint32_t j = 0; j < dstSize; j++)
-        // {
-        //     recover_src[idx][j] = src_ptr[src_i][j];
-        // }
-        src_i++;
+        else
+        {
+            memset(recover_src[i], 0, dstSize);
+            idx++;
+        }
     }
 
     for (uint32_t i = 0; i < destCnt; i++)
@@ -434,11 +420,8 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
     {
         if(find(readIndex.begin(), readIndex.end(),errorIndex[i]) != readIndex.end())
         {
-            // for(uint32_t j = 0; j < dstSize; j++)
-            // {
-            //     dst_ptr[i][j] = recover_outp[i][j];
-            // }
-            memcpy(dst_ptr+i,recover_outp[i],dstSize);
+            memcpy(dst, recover_outp[errorIndex[i]], dstSize);
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData[DONE]:{}",errorIndex[i]);
         }
     }
 
@@ -451,7 +434,7 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
     {
         delete[] recover_outp[i];
     }
-    
+
     delete[] decode_matrix;
     delete[] invert_matrix;
     delete[] temp_matrix;
