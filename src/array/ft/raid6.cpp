@@ -316,12 +316,13 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
 
     for(auto eIdx : errorIndex)
     {
-        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: device index:{}",eIdx);
+        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[1]Raid6::_RebuildData: err index:{}",eIdx);
     }
+
     uint32_t destCnt = errorIndex.size();
     assert(destCnt <= parityCnt);
 
-    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: destCnt:{}",destCnt);
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[2]Raid6::_RebuildData: destCnt:{}",destCnt);
 
     unsigned char err_index[chunkCnt];
     unsigned char decode_index[chunkCnt];
@@ -356,6 +357,7 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
     {
         if(find(errorIndex.begin(), errorIndex.end(),i) == errorIndex.end())
         {
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[3]Raid6::_RebuildData: recover source index:{}", i);
             memcpy(recover_src[i], src_ptr+(i-idx)*dstSize, dstSize);
         }
         else
@@ -418,10 +420,10 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
 
     for (uint32_t i = 0; i < destCnt; i++)
     {
-        if(find(readIndex.begin(), readIndex.end(),errorIndex[i]) != readIndex.end())
+        if(find(readIndex.begin(), readIndex.end(), errorIndex[i]) != readIndex.end())
         {
-            memcpy(dst, recover_outp[errorIndex[i]], dstSize);
-            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData[DONE]:{}",errorIndex[i]);
+            memcpy(dst, recover_outp[i], dstSize);
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[4]Raid6::_RebuildData[DONE]:{}",i);
         }
     }
 
