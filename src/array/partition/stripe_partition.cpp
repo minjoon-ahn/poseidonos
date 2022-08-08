@@ -449,7 +449,7 @@ StripePartition::GetRecoverMethod(UbioSmartPtr ubio, RecoverMethod& out)
             originPba.lba = blockAlignment.GetHeadBlock() * sectorsPerBlock;
             FtBlkAddr fba = _Pba2Fba(originPba);
             out.srcAddr = _GetRebuildGroup(fba);
-            out.recoverFunc = method->GetRecoverFunc(devIdx);
+            out.recoverFunc = method->GetRecoverFunc(devIdx, fba.stripeId);
             return EID(SUCCESS);
         }
         else

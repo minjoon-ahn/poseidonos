@@ -89,7 +89,7 @@ RaidNone::CheckNumofDevsToConfigure(uint32_t numofDevs)
 }
 
 RecoverFunc
-RaidNone::GetRecoverFunc(int devIdx)
+RaidNone::GetRecoverFunc(int devIdx, StripeId stripeId)
 {
     return recoverFunc;
 }

@@ -122,14 +122,14 @@ Raid6::GetParityOffset(StripeId lsid)
 {
     vector<uint32_t> raid6ParityIndex;
 
-    uint32_t pParityOffset = lsid + dataCnt;
-    uint32_t qParityOffset = pParityOffset + 1;
+    // uint32_t pParityOffset = lsid + dataCnt;
+    // uint32_t qParityOffset = pParityOffset + 1;
 
-    uint32_t pParityIdx = pParityOffset % chunkCnt;
-    uint32_t qParityIdx = qParityOffset % chunkCnt;
+    // uint32_t pParityIdx = pParityOffset % chunkCnt;
+    // uint32_t qParityIdx = qParityOffset % chunkCnt;
 
-    raid6ParityIndex.push_back(pParityIdx);
-    raid6ParityIndex.push_back(qParityIdx);
+    raid6ParityIndex.push_back(chunkCnt - 2);
+    raid6ParityIndex.push_back(chunkCnt - 1);
 
     return raid6ParityIndex;
 }
@@ -140,8 +140,8 @@ Raid6::MakeParity(list<FtWriteEntry>& ftl, const LogicalWriteEntry& src)
     vector<uint32_t> parityOffset = GetParityOffset(src.addr.stripeId);
     assert(parityOffset.size() == parityCnt);
 
-    pParityIndex = parityOffset.front();
-    qParityIndex = parityOffset.back();
+    uint32_t pParityIndex = parityOffset.front();
+    uint32_t qParityIndex = parityOffset.back();
 
     FtWriteEntry fwe_pParity;
     FtWriteEntry fwe_qParity;
@@ -174,6 +174,11 @@ Raid6::MakeParity(list<FtWriteEntry>& ftl, const LogicalWriteEntry& src)
     ftl.push_back(fwe_pParity);
     ftl.push_back(fwe_qParity);
 
+    for(auto ftls: ftl)
+    {
+        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::Makeparity-ftls.stripeId:{}, ftls.offset:{}",ftls.addr.stripeId, ftls.addr.offset);
+    }
+
     return 0;
 }
 
@@ -204,6 +209,7 @@ Raid6::GetRebuildGroup(FtBlkAddr fba, vector<ArrayDeviceState> devs)
             FtBlkAddr fsa = {.stripeId = fba.stripeId,
                              .offset = offsetInChunk + i * blksPerChunk};
             recoveryGroup.push_back(fsa);
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRebuildGroup-idx:{},fsa.stripeId:{}, offset:{}",i, fsa.stripeId, fsa.offset);
         }
     }
     return recoveryGroup;
@@ -299,7 +305,7 @@ Raid6::_ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src)
 }
 
 void
-Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> readIndex)
+Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> readIndex, StripeId stripeId)
 {
     const vector<ArrayDeviceState> devs = stateGetter();
     uint32_t  deviceStateIdx = 0;
@@ -316,13 +322,13 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
 
     for(auto eIdx : errorIndex)
     {
-        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[1]Raid6::_RebuildData: err index:{}",eIdx);
+        POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: err index:{}",eIdx);
     }
 
     uint32_t destCnt = errorIndex.size();
     assert(destCnt <= parityCnt);
 
-    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[2]Raid6::_RebuildData: destCnt:{}",destCnt);
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: destCnt:{}",destCnt);
 
     unsigned char err_index[chunkCnt];
     unsigned char decode_index[chunkCnt];
@@ -357,7 +363,7 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
     {
         if(find(errorIndex.begin(), errorIndex.end(),i) == errorIndex.end())
         {
-            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[3]Raid6::_RebuildData: recover source index:{}", i);
+            // POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[3]Raid6::_RebuildData: recover source index:{}", i);
             memcpy(recover_src[i], src_ptr+(i-idx)*dstSize, dstSize);
         }
         else
@@ -386,11 +392,15 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
     }
 
     gf_invert_matrix(temp_matrix, invert_matrix, dataCnt);
+    vector<uint32_t> parityOffset = GetParityOffset(stripeId);
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: StripeID :{},parityOffset.size:{}, pParityIDX:{} qParityIDX:{}",stripeId, parityOffset.size(), parityOffset.front(), parityOffset.back());
 
     for (uint32_t i = 0; i < destCnt; i++)
     {
-        if(errorIndex[i] == pParityIndex || errorIndex[i] == qParityIndex)
+        if(find(parityOffset.begin(), parityOffset.end(),errorIndex[i]) != parityOffset.end())   
         {
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: PARITY DEVICE ERROR");
+            cout<< "Raid6::_RebuildData: PARITY DEVICE ERROR" <<endl;
             for (uint32_t pidx = 0; pidx < dataCnt; pidx++)
             {
                 unsigned char s = 0;
@@ -403,6 +413,8 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
         }
         else
         {
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData: DATA DEVICE ERROR");
+            cout<< "Raid6::_RebuildData: DATA DEVICE ERROR" <<endl;
             for (uint32_t j = 0; j < dataCnt; j++)
             {
                 decode_matrix[dataCnt * i + j] = invert_matrix[dataCnt * errorIndex[i] + j];
@@ -423,7 +435,7 @@ Raid6::_RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rea
         if(find(readIndex.begin(), readIndex.end(), errorIndex[i]) != readIndex.end())
         {
             memcpy(dst, recover_outp[i], dstSize);
-            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "[4]Raid6::_RebuildData[DONE]:{}",i);
+            POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::_RebuildData [DONE]:{}",i);
         }
     }
 
@@ -501,11 +513,12 @@ Raid6::GetParityPoolSize()
 }
 
 RecoverFunc
-Raid6::GetRecoverFunc(int devIdx)
+Raid6::GetRecoverFunc(int devIdx, StripeId stripeId)
 {
+    POS_TRACE_WARN(EID(RAID_DEBUG_MSG), "Raid6::GetRecoverFunc-devIdx:{}",devIdx);
     vector<uint32_t> errorIndex;
     errorIndex.push_back(devIdx);
-    recoverFunc = bind(&Raid6::_RebuildData, this, placeholders::_1, placeholders::_2, placeholders::_3, errorIndex);
+    recoverFunc = bind(&Raid6::_RebuildData, this, placeholders::_1, placeholders::_2, placeholders::_3, errorIndex, stripeId);
     return recoverFunc;
 }
 

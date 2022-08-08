@@ -60,15 +60,16 @@ public:
     virtual RaidState GetRaidState(vector<ArrayDeviceState> devs) override;
     vector<uint32_t> GetParityOffset(StripeId lsid) override;
     bool CheckNumofDevsToConfigure(uint32_t numofDevs) override;
-    RecoverFunc GetRecoverFunc(int devIdx) override;
+    RecoverFunc GetRecoverFunc(int devIdx, StripeId stripeId) override;
 
     // This function is for unit testing only
     virtual int GetParityPoolSize();
-
-private:
-    void _RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rebuildIndex);
-    BufferEntry _AllocChunk();
+    void _RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rebuildIndex, StripeId stripeId);
     void _ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src);
+private:
+    //void _RebuildData(void* dst, void* src, uint32_t dstSize, vector<uint32_t> rebuildIndex);
+    BufferEntry _AllocChunk();
+    //void _ComputePQParities(list<BufferEntry>& dst, const list<BufferEntry>& src);
     vector<BufferPool*> parityPools;
     AffinityManager* affinityManager = nullptr;
     MemoryManager* memoryManager = nullptr;
@@ -78,8 +79,6 @@ private:
     uint32_t chunkCnt = 0;
     uint32_t dataCnt = 0;
     uint32_t parityCnt = 2;
-    uint32_t pParityIndex = 0;
-    uint32_t qParityIndex = 0;
     unsigned char* encode_matrix = nullptr;
     unsigned char* g_tbls = nullptr;
     RecoverFunc recoverFunc = nullptr;

@@ -154,7 +154,7 @@ Raid10::_GetMirrorIndex(uint32_t idx)
 }
 
 RecoverFunc
-Raid10::GetRecoverFunc(int devIdx)
+Raid10::GetRecoverFunc(int devIdx, StripeId stripeId)
 {
     return recoverFunc;
 }

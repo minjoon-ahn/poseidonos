@@ -320,7 +320,7 @@ Raid5::GetParityPoolSize()
 }
 
 RecoverFunc
-Raid5::GetRecoverFunc(int devIdx)
+Raid5::GetRecoverFunc(int devIdx, StripeId stripeId)
 {
     return recoverFunc;
 }

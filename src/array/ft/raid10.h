@@ -53,7 +53,7 @@ public:
     virtual RaidState GetRaidState(vector<ArrayDeviceState> devs) override;
     vector<uint32_t> GetParityOffset(StripeId lsid) override;
     bool CheckNumofDevsToConfigure(uint32_t numofDevs) override;
-    RecoverFunc GetRecoverFunc(int devIdx) override;
+    RecoverFunc GetRecoverFunc(int devIdx, StripeId stripeId) override;
 
 private:
     void _RebuildData(void* dst, void* src, uint32_t size);
