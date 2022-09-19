@@ -1228,7 +1228,7 @@ TEST(Array, DISABLED_ResumeRebuild_testIfResumeRebuildProperly)
     bool actual = array.ResumeRebuild(vector<IArrayDevice*>{mockArrDev});
 
     // Then
-    ASSERT_TRUE(actual);
+    ASSERT_FALSE(actual);
     delete mockArrDev;
 }
 
